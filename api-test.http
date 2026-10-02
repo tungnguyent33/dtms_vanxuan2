@@ -1,0 +1,82 @@
+### Thu API bang IntelliJ IDEA (HTTP Client co san) hoac VS Code (extension "REST Client")
+### Chay tung request theo thu tu: dang nhap truoc de lay token.
+
+@host = http://localhost:8080
+
+### 1. Dang nhap (tai khoan mau trong V2__seed.sql, mat khau 123456)
+# @name login
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "tenDangNhap": "letan01", "matKhau": "123456" }
+
+### Lay token tu ket qua dang nhap
+@token = {{login.response.body.token}}
+
+### 2. Danh sach khoa
+GET {{host}}/api/khoa
+Authorization: Bearer {{token}}
+
+### 3. Tra CCCD (404 neu hoc vien moi)
+GET {{host}}/api/hoc-vien/tra-cccd/025205000001
+Authorization: Bearer {{token}}
+
+### 4. Tiep nhan ho so (khoa 1 phai o trang thai DANG_TUYEN)
+POST {{host}}/api/dang-ky
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "hocVien": {
+    "hoTen": "Nguyễn Văn Thử", "ngaySinh": "2000-05-20", "gioiTinh": "NAM",
+    "cccd": "025200000777", "diaChi": "Hiền Quan, Tam Nông, Phú Thọ", "soDienThoai": "0987654321"
+  },
+  "khoaId": 1, "hinhThucLyThuyet": "TU_HOC", "nguon": "TRUC_TIEP", "giamTru": 0
+}
+
+### 5. Kiem tra quy tac tuoi: phai tra ve 422 HV_CHUA_DU_TUOI
+POST {{host}}/api/dang-ky
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "hocVien": {
+    "hoTen": "Học Viên Nhỏ Tuổi", "ngaySinh": "2010-01-01", "gioiTinh": "NU",
+    "cccd": "025310000888", "diaChi": "Tam Nông", "soDienThoai": "0987654322"
+  },
+  "khoaId": 1, "hinhThucLyThuyet": "TU_HOC", "nguon": "TRUC_TIEP"
+}
+
+### 6. Tim kiem ho so
+GET {{host}}/api/dang-ky?q=Thử&page=0&size=20
+Authorization: Bearer {{token}}
+
+### 7. Lap phieu thu (doi dangKyId theo ket qua buoc 4)
+POST {{host}}/api/phieu-thu
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{ "dangKyId": 1, "soTien": 500000, "hinhThuc": "TIEN_MAT" }
+
+### 8. In phieu thu PDF (mo trong trinh duyet)
+GET {{host}}/api/phieu-thu/1/pdf
+Authorization: Bearer {{token}}
+
+### 9. Cong no
+GET {{host}}/api/cong-no?chiConNo=true
+Authorization: Bearer {{token}}
+
+### 10. Khong co token -> 401
+GET {{host}}/api/khoa
+
+### 11. Dang ky truc tuyen (khong can dang nhap)
+POST {{host}}/api/public/dang-ky
+Content-Type: application/json
+
+{
+  "hocVien": {
+    "hoTen": "Khách Online", "ngaySinh": "1999-09-09", "gioiTinh": "NAM",
+    "cccd": "025199000999", "diaChi": "Việt Trì, Phú Thọ", "soDienThoai": "0977777777"
+  },
+  "khoaId": 1, "hinhThucLyThuyet": "TAP_TRUNG"
+}

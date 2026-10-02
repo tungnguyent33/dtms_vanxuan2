@@ -1,0 +1,49 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: dtms-backend
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:vanxuan_dtms}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Ho_Chi_Minh
+    username: ${DB_USER:root}
+    password: ${DB_PASSWORD:123456}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none          # Flyway quan ly cau truc CSDL, Hibernate khong tu tao bang
+    properties:
+      hibernate:
+        format_sql: true
+        jdbc:
+          time_zone: Asia/Ho_Chi_Minh
+    show-sql: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 12MB
+  jackson:
+    time-zone: Asia/Ho_Chi_Minh
+    serialization:
+      write-dates-as-timestamps: false
+
+app:
+  jwt:
+    # Toi thieu 32 ky tu. Khi trien khai that PHAI doi qua bien moi truong JWT_SECRET.
+    secret: ${JWT_SECRET:doi-chuoi-bi-mat-nay-truoc-khi-trien-khai-van-xuan-2026}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+  upload-dir: ${UPLOAD_DIR:./uploads}
+  chinh-sach:
+    yeu-cau-het-no-khi-hoan-thanh: true   # BR-09
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+
+logging:
+  level:
+    vn.vanxuan: DEBUG
