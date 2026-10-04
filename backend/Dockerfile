@@ -13,4 +13,6 @@ ENV TZ=Asia/Ho_Chi_Minh
 COPY --from=build /app/target/dtms-backend-*.jar app.jar
 RUN mkdir -p /app/uploads
 EXPOSE 8080
+# Container mien phi RAM thap: gioi han heap theo RAM container, dung SerialGC cho nhe
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC -Xss512k -XX:TieredStopAtLevel=1"
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
