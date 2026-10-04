@@ -6,7 +6,7 @@ export const REFRESH_KEY = 'dtms_refresh'
 export const USER_KEY = 'dtms_user'
 
 /** Axios dung chung: tu gan JWT, tu lam moi phien khi access token het han. */
-export const api = axios.create({ baseURL: '/api', timeout: 20000 })
+export const api = axios.create({ baseURL: import.meta.env.VITE_API_URL || '/api', timeout: 20000 })
 
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(TOKEN_KEY)
