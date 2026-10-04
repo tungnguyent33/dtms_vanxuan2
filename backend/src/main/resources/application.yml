@@ -5,7 +5,7 @@ spring:
   application:
     name: dtms-backend
   datasource:
-    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:vanxuan_dtms}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Ho_Chi_Minh
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:vanxuan_dtms}?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=GMT%2B07:00
     username: ${DB_USER:root}
     password: ${DB_PASSWORD:123456}
   jpa:
@@ -16,7 +16,9 @@ spring:
       hibernate:
         format_sql: true
         jdbc:
-          time_zone: Asia/Ho_Chi_Minh
+          # Mui gio co dinh +07:00. KHONG dung Asia/Ho_Chi_Minh: nam 1970 vung nay la UTC+8, ma Hibernate
+          # doi kieu TIME qua moc 01/01/1970 -> gio hoc bi lech 1 tieng (07:30 thanh 06:30).
+          time_zone: GMT+07:00
     show-sql: false
   flyway:
     enabled: true
@@ -34,8 +36,17 @@ app:
   jwt:
     # Toi thieu 32 ky tu. Khi trien khai that PHAI doi qua bien moi truong JWT_SECRET.
     secret: ${JWT_SECRET:doi-chuoi-bi-mat-nay-truoc-khi-trien-khai-van-xuan-2026}
-    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:15}      # access token ngan han
+    refresh-days: ${JWT_REFRESH_DAYS:7}                    # refresh token (luu bam trong CSDL, xoay vong)
+  dang-nhap:
+    so-lan-sai-toi-da: 5
+    phut-khoa-tam: 15
   upload-dir: ${UPLOAD_DIR:./uploads}
+  nhac-viec:
+    cron: "0 0 7 * * *"                   # FR-16: nhac lich, nhac no, nhac bao cao So (BR-12)
+  captcha:
+    bat: ${CAPTCHA_BAT:true}               # captcha anh cho form cong khai (dang ky, tra cuu)
+  gioi-han-tan-suat: ${GIOI_HAN_TAN_SUAT:true}   # chong do mat khau / spam form theo IP
   chinh-sach:
     yeu-cau-het-no-khi-hoan-thanh: true   # BR-09
 

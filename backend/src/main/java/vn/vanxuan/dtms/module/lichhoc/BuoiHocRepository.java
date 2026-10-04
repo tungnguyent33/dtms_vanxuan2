@@ -12,6 +12,11 @@ import java.util.Optional;
 
 public interface BuoiHocRepository extends JpaRepository<BuoiHoc, Long> {
 
+    /** Buoi ke hoach tu ngay chi dinh tro di - chan ngung giao vien / xe dang duoc xep lich. */
+    long countByGiaoVienIdAndTrangThaiAndNgayGreaterThanEqual(Long giaoVienId, BuoiHoc.TrangThai trangThai, LocalDate ngay);
+
+    long countByXeIdAndTrangThaiAndNgayGreaterThanEqual(Long xeId, BuoiHoc.TrangThai trangThai, LocalDate ngay);
+
     @EntityGraph(attributePaths = {"khoa", "giaoVien", "xe"})
     @Query("""
             select b from BuoiHoc b

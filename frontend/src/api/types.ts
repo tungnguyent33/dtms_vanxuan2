@@ -1,6 +1,6 @@
 // Kieu du lieu khop voi DTO cua backend (xem cac file *Dtos.java)
 
-export type VaiTro = 'ADMIN' | 'LE_TAN' | 'GIAO_VIEN' | 'HOC_VIEN'
+export type VaiTro = 'ADMIN' | 'LE_TAN' | 'GIAO_VIEN' | 'HOC_VIEN' | 'CTV'
 
 export interface LoginResponse {
   token: string
@@ -9,6 +9,8 @@ export interface LoginResponse {
   tenDangNhap: string
   hoTen: string
   vaiTro: VaiTro
+  refreshToken: string
+  phaiDoiMatKhau: boolean
 }
 
 export interface ApiError {
@@ -33,6 +35,7 @@ export interface HangGplx {
   soNgayKhoaToiDa: number
   hocPhiMacDinh: number
   canCuPhapLy?: string
+  dangApDung: boolean
 }
 
 export type TrangThaiKhoa = 'DU_KIEN' | 'DANG_TUYEN' | 'DANG_DAO_TAO' | 'DA_KET_THUC' | 'HUY'
@@ -65,6 +68,7 @@ export interface HocVien {
   email?: string
   coAnhChanDung: boolean
   coAnhCccd: boolean
+  coTaiKhoan: boolean
 }
 
 export type TrangThaiDangKy =
@@ -79,8 +83,10 @@ export interface DangKy {
   maKhoa: string
   hang: string
   hinhThucLyThuyet: 'TU_HOC' | 'TAP_TRUNG'
-  nguon: 'TRUC_TIEP' | 'TRUC_TUYEN' | 'CTV'
+  nguon: 'TRUC_TIEP' | 'TRUC_TUYEN' | 'CTV' | 'HOC_VIEN_GIOI_THIEU'
   ctvId?: number
+  tenCtv?: string
+  gioiThieuHocVienId?: number
   hocPhi: number
   giamTru: number
   trangThai: TrangThaiDangKy
@@ -139,7 +145,10 @@ export interface GiaoVien {
   id: number
   hoTen: string
   soDienThoai: string
-  loaiGiangDay: string
+  soGiayChungNhanGv?: string
+  loaiGiangDay: 'LY_THUYET' | 'THUC_HANH' | 'CA_HAI'
+  hoatDong: boolean
+  tenDangNhap?: string
 }
 
 export interface Xe {
@@ -147,14 +156,169 @@ export interface Xe {
   bienSo: string
   hang: string
   nhanHieu?: string
-  trangThai: string
+  namSanXuat?: number
+  trangThai: 'SAN_SANG' | 'BAO_DUONG' | 'NGUNG'
+  ngayBaoDuongTiep?: string
 }
+
+export type TrangThaiCtv = 'CHO_DUYET' | 'HOAT_DONG' | 'TAM_KHOA' | 'NGUNG'
+export type HangCtv = 'THUONG' | 'BAC' | 'VANG'
+export type LoaiCtv = 'HOC_VIEN_CU' | 'SINH_VIEN' | 'DOI_TAC'
 
 export interface Ctv {
   id: number
   hoTen: string
   soDienThoai: string
+  zalo?: string
+  cccd?: string
+  diaChi?: string
   diaBan?: string
+  loai: LoaiCtv
+  hang: HangCtv
+  trangThai: TrangThaiCtv
+  nganHang?: string
+  soTaiKhoan?: string
+  chuTaiKhoan?: string
+  coCamKet: boolean
+  ngayBatDau?: string
+  ghiChu?: string
+  hocVienId?: number
+  tenDangNhap?: string
+  nguoiTaoId?: number
+  nguoiTao?: string
+  createdAt?: string
+  nguoiDuyet?: string
+  ngayDuyet?: string
+  soLead: number
+  soHocVien: number
+}
+
+export type TrangThaiLead = 'MOI' | 'DA_LIEN_HE' | 'DA_CHOT' | 'KHONG_THANH'
+
+export interface Lead {
+  id: number
+  hoTen: string
+  soDienThoai: string
+  diaChi?: string
+  hangMuonHoc?: string
+  ghiChu?: string
+  nguon: 'CTV' | 'HOC_VIEN' | 'VAN_PHONG'
+  ctvId?: number
+  tenCtv?: string
+  hocVienGioiThieuId?: number
+  trangThai: TrangThaiLead
+  dangKyId?: number
+  maHoSo?: string
+  nguoiNhap?: string
+  createdAt: string
+}
+
+export type TrangThaiHoaHong = 'CHUA_DU_DIEU_KIEN' | 'DU_DIEU_KIEN' | 'DA_DUYET' | 'DA_CHI' | 'HUY'
+
+export interface HoaHong {
+  id: number
+  dangKyId: number
+  maHoSo: string
+  hocVien: string
+  maKhoa: string
+  hang: string
+  ctvId: number
+  tenCtv: string
+  kieu?: 'PHAN_TRAM' | 'CO_DINH'
+  giaTri?: number
+  coSo: number
+  soTien: number
+  trangThai: TrangThaiHoaHong
+  ngayDuDieuKien?: string
+  ky?: string
+  ngayDuyet?: string
+  soPhieuChi?: string
+  ghiChu?: string
+}
+
+export interface TongHopKy {
+  ctvId: number
+  tenCtv: string
+  soDienThoai: string
+  nganHang?: string
+  soTaiKhoan?: string
+  chuTaiKhoan?: string
+  soDon: number
+  duDieuKien: number
+  daDuyet: number
+  daChi: number
+}
+
+export interface PhieuChi {
+  id: number
+  soPhieu: string
+  ctvId: number
+  tenCtv: string
+  ky: string
+  soTien: number
+  hinhThuc: 'TIEN_MAT' | 'CHUYEN_KHOAN'
+  ngayChi: string
+  nguoiChi?: string
+  ghiChu?: string
+  soDon: number
+}
+
+export interface ChinhSach {
+  id: number
+  hangCtv: HangCtv
+  hangGplx: string
+  kieu: 'PHAN_TRAM' | 'CO_DINH'
+  giaTri: number
+  hieuLucTu: string
+  dangApDung: boolean
+  soDonDaDung: number
+}
+
+export interface BaoCaoCtv {
+  ctvId: number
+  tenCtv: string
+  hang: HangCtv
+  trangThai: TrangThaiCtv
+  soLead: number
+  soChot: number
+  tyLeChot: number
+  soHocVien: number
+  doanhThu: number
+  hoaHongPhatSinh: number
+  daChi: number
+  conPhaiTra: number
+}
+
+export interface CtvCuaToi {
+  ctvId: number
+  hoTen: string
+  trangThai: TrangThaiCtv
+  hang: HangCtv
+  soLead: number
+  soChot: number
+  choDuyet: number
+  choChi: number
+  daNhan: number
+}
+
+export interface NguoiDung {
+  id: number
+  tenDangNhap: string
+  hoTen: string
+  soDienThoai?: string
+  email?: string
+  vaiTro: VaiTro
+  hoatDong: boolean
+  phaiDoiMatKhau: boolean
+  dangKhoaTam: boolean
+  lanDangNhapCuoi?: string
+}
+
+/** Mat khau tam chi tra ve mot lan khi cap / dat lai. */
+export interface KetQuaCapMatKhau {
+  nguoiDungId: number
+  tenDangNhap: string
+  matKhauTam: string
 }
 
 export interface BuoiHoc {
@@ -229,4 +393,35 @@ export interface KhoaCongKhai {
   ngayBeGiang: string
   hocPhi: number
   conCho: number
+}
+
+export interface HangCongKhai {
+  ma: string
+  ten: string
+  gioLyThuyet: number
+  gioThucHanh: number
+  tuoiToiThieu: number
+  soNgayKhoaToiDa: number
+  canCuPhapLy?: string
+}
+
+export interface KetQuaTraCuu {
+  maHoSo: string
+  hoTen: string
+  hang: string
+  maKhoa: string
+  ngayKhaiGiang: string
+  ngayBeGiang: string
+  trangThai: string
+  ngayDangKy: string
+}
+
+export interface ThongBao {
+  id: number
+  loai: string
+  tieuDe: string
+  noiDung: string
+  duongDan?: string
+  daDoc: boolean
+  thoiGian: string
 }

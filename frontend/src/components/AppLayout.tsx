@@ -2,13 +2,14 @@ import { useState, type ReactNode } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Button, Drawer, Dropdown, Grid, Layout, Menu, Typography } from 'antd'
 import {
-  BarChartOutlined, CalendarOutlined, CheckSquareOutlined, DollarOutlined, LogoutOutlined,
-  MenuOutlined, ReadOutlined, TeamOutlined, UserOutlined,
+  BarChartOutlined, CalendarOutlined, CheckSquareOutlined, DollarOutlined, KeyOutlined, LogoutOutlined,
+  MenuOutlined, ReadOutlined, SettingOutlined, ShareAltOutlined, TeamOutlined, UserOutlined,
 } from '@ant-design/icons'
 import type { MenuProps } from 'antd'
 import type { VaiTro } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { NHAN_VAI_TRO } from '../utils/format'
+import ThongBaoChuong from './ThongBaoChuong'
 
 const { Header, Sider, Content } = Layout
 
@@ -23,6 +24,10 @@ const MENU: MucMenu[] = [
   { key: '/lich-hoc', icon: <CalendarOutlined />, label: 'Lịch học', roles: ['ADMIN', 'LE_TAN'] },
   { key: '/diem-danh', icon: <CheckSquareOutlined />, label: 'Điểm danh', roles: ['ADMIN', 'GIAO_VIEN'] },
   { key: '/cong-no', icon: <DollarOutlined />, label: 'Công nợ học phí', roles: ['ADMIN', 'LE_TAN'] },
+  { key: '/ctv', icon: <ShareAltOutlined />, label: 'Cộng tác viên', roles: ['ADMIN', 'LE_TAN'] },
+  { key: '/ctv-cua-toi', icon: <ShareAltOutlined />, label: 'Cộng tác viên', roles: ['CTV'] },
+  { key: '/ctv-cua-toi', icon: <ShareAltOutlined />, label: 'Giới thiệu bạn bè', roles: ['HOC_VIEN'] },
+  { key: '/quan-tri', icon: <SettingOutlined />, label: 'Danh mục & người dùng', roles: ['ADMIN'] },
 ]
 
 export default function AppLayout() {
@@ -75,8 +80,14 @@ export default function AppLayout() {
         <Header style={{ background: '#fff', padding: '0 16px', display: 'flex', alignItems: 'center',
                          justifyContent: 'space-between', borderBottom: '1px solid #eee' }}>
           <div>{laMobile && <Button icon={<MenuOutlined />} onClick={() => setMoMenu(true)} />}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <ThongBaoChuong />
           <Dropdown
-            menu={{ items: [{ key: 'out', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: () => { dangXuat(); navigate('/dang-nhap') } }] }}
+            menu={{ items: [
+              { key: 'mk', icon: <KeyOutlined />, label: 'Đổi mật khẩu', onClick: () => navigate('/doi-mat-khau') },
+              { type: 'divider' },
+              { key: 'out', icon: <LogoutOutlined />, label: 'Đăng xuất', onClick: () => { dangXuat(); navigate('/dang-nhap') } },
+            ] }}
           >
             <div style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
               <Avatar icon={<UserOutlined />} style={{ background: '#1f4e79' }} />
@@ -86,6 +97,7 @@ export default function AppLayout() {
               </div>
             </div>
           </Dropdown>
+          </div>
         </Header>
         <Content style={{ padding: laMobile ? 12 : 24 }}>
           <Outlet />

@@ -63,6 +63,11 @@ public class HocVien {
     @Column(name = "created_at", insertable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    /** Id tai khoan cong hoc vien (null neu chua cap). Proxy LAZY tra id ma khong truy van CSDL. */
+    public Long nguoiDungId() {
+        return nguoiDung == null ? null : nguoiDung.getId();
+    }
+
     /** Tuoi tron tai mot ngay (dung kiem tra BR-02). */
     public int tuoiTai(LocalDate ngay) {
         return Period.between(ngaySinh, ngay).getYears();

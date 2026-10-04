@@ -18,6 +18,7 @@ import vn.vanxuan.dtms.module.khoa.KhoaDaoTao;
 import vn.vanxuan.dtms.module.khoa.KhoaDaoTaoRepository;
 import vn.vanxuan.dtms.module.nguoidung.NguoiDung;
 import vn.vanxuan.dtms.module.nguoidung.NguoiDungRepository;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
 import vn.vanxuan.dtms.security.AuthUser;
 
 import java.math.BigDecimal;
@@ -27,6 +28,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
@@ -45,6 +47,9 @@ class DangKyServiceTest {
     @Mock PhieuThuRepository phieuThuRepo;
     @Mock SoThuTuService soThuTu;
     @Mock NhatKyService nhatKy;
+    @Mock ThongBaoService thongBao;
+    @Mock vn.vanxuan.dtms.module.ctv.LeadService leadService;
+    @Mock vn.vanxuan.dtms.module.ctv.HoaHongService hoaHong;
     @InjectMocks DangKyService service;
 
     private final AuthUser leTan = new AuthUser(2L, "letan01", "LE_TAN");
@@ -82,7 +87,7 @@ class DangKyServiceTest {
         var hv = new DangKyDtos.HocVienInput("Nguyễn Văn Test", ngaySinh, HocVien.GioiTinh.NAM,
                 "025200000999", null, "Tam Nông, Phú Thọ", "0912345678", null);
         return new DangKyDtos.TaoDangKyRequest(hv, 1L, DangKy.HinhThucLyThuyet.TU_HOC,
-                DangKy.Nguon.TRUC_TIEP, null, null, null, null);
+                DangKy.Nguon.TRUC_TIEP, null, null, null, null, null);
     }
 
     @Test
@@ -113,6 +118,25 @@ class DangKyServiceTest {
         assertThatThrownBy(() -> service.taoDangKy(request(LocalDate.of(2000, 1, 1)), leTan))
                 .isInstanceOf(BusinessException.class)
                 .extracting("code").isEqualTo("KHOA_DU_SI_SO");
+    }
+
+    @Test
+    void khoaDuSiSo_goiYKhoaKeTiepCungHangConCho() {
+        KhoaDaoTao keTiep = new KhoaDaoTao();
+        keTiep.setId(2L);
+        keTiep.setMaKhoa("A1-TIEP");
+        keTiep.setHang(khoa.getHang());
+        keTiep.setNgayKhaiGiang(LocalDate.of(2026, 10, 20));
+        keTiep.setSiSoToiDa(60);
+        when(dangKyRepo.countByKhoaIdAndTrangThaiNot(eq(1L), any())).thenReturn(60L);
+        when(dangKyRepo.countByKhoaIdAndTrangThaiNot(eq(2L), any())).thenReturn(55L);
+        when(khoaRepo.khoaCungHang(eq("A1"), eq(1L), any(), any())).thenReturn(java.util.List.of(keTiep));
+
+        assertThatThrownBy(() -> service.taoDangKy(request(LocalDate.of(2000, 1, 1)), leTan))
+                .isInstanceOfSatisfying(BusinessException.class, e -> {
+                    assertThat(e.getCode()).isEqualTo("KHOA_DU_SI_SO");
+                    assertThat(e.getDetails()).containsEntry("goiYKhoaId", "2").containsEntry("goiYConCho", "5");
+                });
     }
 
     @Test

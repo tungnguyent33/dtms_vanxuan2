@@ -18,10 +18,12 @@ import static vn.vanxuan.dtms.module.hocvien.DangKyDtos.*;
 public class DangKyController {
     private final DangKyService service;
     private final TienDoService tienDoService;
+    private final QuyenHoSoService quyen;
 
-    public DangKyController(DangKyService service, TienDoService tienDoService) {
+    public DangKyController(DangKyService service, TienDoService tienDoService, QuyenHoSoService quyen) {
         this.service = service;
         this.tienDoService = tienDoService;
+        this.quyen = quyen;
     }
 
     @GetMapping
@@ -73,9 +75,17 @@ public class DangKyController {
         return service.chuyenKhoa(id, req.khoaMoiId(), user);
     }
 
+    @PatchMapping("/{id}/ctv")
+    @PreAuthorize("hasAnyRole('ADMIN','LE_TAN')")
+    public DangKyResponse ganCtv(@PathVariable Long id, @Valid @RequestBody GanCtvRequest req,
+                                 @AuthenticationPrincipal AuthUser user) {
+        return service.ganCtv(id, req.ctvId(), user);
+    }
+
     @GetMapping("/{id}/tien-do")
-    @PreAuthorize("hasAnyRole('ADMIN','LE_TAN', 'HOC_VIEN')")
-    public TienDoService.TienDo tienDo(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN','LE_TAN','GIAO_VIEN','HOC_VIEN')")
+    public TienDoService.TienDo tienDo(@PathVariable Long id, @AuthenticationPrincipal AuthUser user) {
+        quyen.kiemTraXem(user, id);
         return tienDoService.tinh(id);
     }
 }

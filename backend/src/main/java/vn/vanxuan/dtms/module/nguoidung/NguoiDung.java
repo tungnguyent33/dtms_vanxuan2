@@ -38,4 +38,14 @@ public class NguoiDung {
 
     @Column(name = "lan_dang_nhap_cuoi")
     private LocalDateTime lanDangNhapCuoi;
+
+    /** Dang dung mat khau tam (moi cap / dat lai): phai doi truoc khi dung he thong. */
+    @Column(name = "phai_doi_mat_khau", nullable = false)
+    private Boolean phaiDoiMatKhau = false;
+
+    @Column(name = "so_lan_sai", nullable = false)
+    private Integer soLanSai = 0;
+
+    @Column(name = "khoa_den")
+    private LocalDateTime khoaDen;
 }

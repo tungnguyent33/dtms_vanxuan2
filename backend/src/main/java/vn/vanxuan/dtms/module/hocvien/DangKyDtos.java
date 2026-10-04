@@ -32,14 +32,21 @@ public final class DangKyDtos {
             Long ctvId,
             @DecimalMin("0") BigDecimal giamTru,
             String lyDoGiamTru,
-            String ghiChu) {
+            String ghiChu,
+            Long leadId) {
+    }
+
+    /** Gan / doi CTV cho ho so da co (le tan gan khi chua co CTV; doi CTV da gan chi admin). */
+    public record GanCtvRequest(@NotNull Long ctvId) {
     }
 
     /** Khach dang ky truc tuyen (khong co giam tru, nguon luon TRUC_TUYEN). */
     public record DangKyTrucTuyenRequest(
             @NotNull @Valid HocVienInput hocVien,
             @NotNull Long khoaId,
-            @NotNull DangKy.HinhThucLyThuyet hinhThucLyThuyet) {
+            @NotNull DangKy.HinhThucLyThuyet hinhThucLyThuyet,
+            String captchaId,
+            String captcha) {
     }
 
     public record HuyRequest(@NotBlank String lyDo) {
@@ -50,26 +57,28 @@ public final class DangKyDtos {
 
     public record HocVienResponse(Long id, String maHocVien, String hoTen, LocalDate ngaySinh, String gioiTinh,
                                   String cccd, LocalDate ngayCapCccd, String diaChi, String soDienThoai, String email,
-                                  boolean coAnhChanDung, boolean coAnhCccd) {
+                                  boolean coAnhChanDung, boolean coAnhCccd, boolean coTaiKhoan) {
         public static HocVienResponse of(HocVien h) {
+            // getNguoiDung() la proxy LAZY: so sanh null khong can nap tu CSDL
             return new HocVienResponse(h.getId(), h.getMaHocVien(), h.getHoTen(), h.getNgaySinh(),
                     h.getGioiTinh().name(), h.getCccd(), h.getNgayCapCccd(), h.getDiaChi(), h.getSoDienThoai(),
                     h.getEmail(), h.getAnhChanDungUrl() != null,
-                    h.getAnhCccdTruocUrl() != null && h.getAnhCccdSauUrl() != null);
+                    h.getAnhCccdTruocUrl() != null && h.getAnhCccdSauUrl() != null, h.getNguoiDung() != null);
         }
     }
 
     public record DangKyResponse(Long id, String maHoSo, HocVienResponse hocVien, Long khoaId, String maKhoa,
                                  String hang, String hinhThucLyThuyet, String nguon, Long ctvId, BigDecimal hocPhi,
                                  BigDecimal giamTru, String trangThai, LocalDateTime ngayDangKy,
-                                 String soGiayXacNhan, LocalDate ngayHoanThanh, String ghiChu) {
+                                 String soGiayXacNhan, LocalDate ngayHoanThanh, String ghiChu, String tenCtv,
+                                 Long gioiThieuHocVienId) {
         public static DangKyResponse of(DangKy d) {
             return new DangKyResponse(d.getId(), d.getMaHoSo(), HocVienResponse.of(d.getHocVien()),
                     d.getKhoa().getId(), d.getKhoa().getMaKhoa(), d.getKhoa().getHang().getMa(),
                     d.getHinhThucLyThuyet().name(), d.getNguon().name(),
                     d.getCtv() == null ? null : d.getCtv().getId(), d.getHocPhi(), d.getGiamTru(),
                     d.getTrangThai().name(), d.getNgayDangKy(), d.getSoGiayXacNhan(), d.getNgayHoanThanh(),
-                    d.getGhiChu());
+                    d.getGhiChu(), d.getCtv() == null ? null : d.getCtv().getHoTen(), d.getGioiThieuHocVienId());
         }
     }
 }

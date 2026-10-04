@@ -12,7 +12,10 @@ import vn.vanxuan.dtms.module.hocphi.HocPhiService;
 import vn.vanxuan.dtms.module.hocvien.DangKy;
 import vn.vanxuan.dtms.module.hocvien.DangKyRepository;
 import vn.vanxuan.dtms.module.lichhoc.TienDoService;
+import vn.vanxuan.dtms.common.NgayLamViec;
+import vn.vanxuan.dtms.module.nguoidung.VaiTro;
 import vn.vanxuan.dtms.security.AuthUser;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,11 +48,12 @@ public class XetHoanThanhService {
     private final HocPhiService hocPhiService;
     private final SoThuTuService soThuTu;
     private final NhatKyService nhatKy;
+    private final ThongBaoService thongBao;
     private final boolean yeuCauHetNo;
 
     public XetHoanThanhService(KhoaDaoTaoRepository khoaRepo, DangKyRepository dangKyRepo,
                                TienDoService tienDoService, HocPhiService hocPhiService, SoThuTuService soThuTu,
-                               NhatKyService nhatKy,
+                               NhatKyService nhatKy, ThongBaoService thongBao,
                                @Value("${app.chinh-sach.yeu-cau-het-no-khi-hoan-thanh:true}") boolean yeuCauHetNo) {
         this.khoaRepo = khoaRepo;
         this.dangKyRepo = dangKyRepo;
@@ -57,6 +61,7 @@ public class XetHoanThanhService {
         this.hocPhiService = hocPhiService;
         this.soThuTu = soThuTu;
         this.nhatKy = nhatKy;
+        this.thongBao = thongBao;
         this.yeuCauHetNo = yeuCauHetNo;
     }
 
@@ -84,13 +89,27 @@ public class XetHoanThanhService {
                 dk.setSoGiayXacNhan(soThuTu.capMa("XN" + nam, "XN-" + nam + "-", 5));
                 dk.setNgayHoanThanh(LocalDate.now());
                 soDat++;
+                thongBao.gui(dk.getHocVien().nguoiDungId(), ThongBaoService.KET_QUA, "Bạn đã hoàn thành khóa " + khoa.getMaKhoa(),
+                        "Số giấy xác nhận: " + dk.getSoGiayXacNhan() + ". Bạn đủ điều kiện dự sát hạch.", "/hoc-tap", null);
             } else {
                 dk.setTrangThai(DangKy.TrangThai.CHUA_DAT);
+                thongBao.gui(dk.getHocVien().nguoiDungId(), ThongBaoService.KET_QUA,
+                        "Chưa đủ điều kiện hoàn thành khóa " + khoa.getMaKhoa(),
+                        String.join("; ", kq.lyDo()) + ". Liên hệ trung tâm để học bù hoặc chuyển khóa.", "/hoc-tap", null);
             }
             ketQua.add(kq);
         }
         nhatKy.ghi(admin.id(), "XET_HOAN_THANH", "khoa_dao_tao", khoaId,
                 Map.of("tongSo", ketQua.size(), "soDat", soDat));
+        if (soDat > 0) {
+            // BR-12: gui danh sach hoan thanh ve So trong 02 ngay lam viec (NhacViecService nhac lai vao ngay het han)
+            LocalDate han = NgayLamViec.cong(LocalDate.now(), 2);
+            thongBao.guiTheoVaiTro(List.of(VaiTro.ADMIN), ThongBaoService.BAO_CAO_SO,
+                    "Gửi danh sách hoàn thành khóa " + khoa.getMaKhoa(),
+                    soDat + " học viên được cấp giấy xác nhận. Hạn gửi danh sách về Sở Xây dựng: "
+                            + han.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")) + " (02 ngày làm việc).",
+                    "/khoa", "BC-HT-" + khoaId + "-" + LocalDate.now());
+        }
         return ketQua;
     }
 

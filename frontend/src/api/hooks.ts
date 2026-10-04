@@ -20,4 +20,5 @@ export const useXe = () =>
   useQuery({ queryKey: ['xe'], queryFn: async () => (await api.get<Xe[]>('/xe-tap-lai')).data, staleTime: 300_000 })
 
 export const useCtv = () =>
-  useQuery({ queryKey: ['ctv'], queryFn: async () => (await api.get<Ctv[]>('/ctv')).data, staleTime: 300_000 })
+  // Chi CTV dang hoat dong - dung cho o chon CTV (khong go tay ten CTV)
+  useQuery({ queryKey: ['ctv', 'hoat-dong'], queryFn: async () => (await api.get<Ctv[]>('/ctv')).data, staleTime: 120_000 })

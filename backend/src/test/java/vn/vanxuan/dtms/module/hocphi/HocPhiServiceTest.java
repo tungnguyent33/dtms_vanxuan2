@@ -13,6 +13,7 @@ import vn.vanxuan.dtms.common.SoThuTuService;
 import vn.vanxuan.dtms.module.hocvien.DangKy;
 import vn.vanxuan.dtms.module.hocvien.DangKyRepository;
 import vn.vanxuan.dtms.module.nguoidung.NguoiDungRepository;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
 import vn.vanxuan.dtms.security.AuthUser;
 
 import java.math.BigDecimal;
@@ -32,6 +33,8 @@ class HocPhiServiceTest {
     @Mock NguoiDungRepository nguoiDungRepo;
     @Mock SoThuTuService soThuTu;
     @Mock NhatKyService nhatKy;
+    @Mock ThongBaoService thongBao;
+    @Mock vn.vanxuan.dtms.module.ctv.HoaHongService hoaHong;
     @InjectMocks HocPhiService service;
 
     private final AuthUser leTan = new AuthUser(2L, "letan01", "LE_TAN");

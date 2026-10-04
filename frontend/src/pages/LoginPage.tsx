@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { Alert, Button, Card, Form, Input, Typography } from 'antd'
 import { LockOutlined, UserOutlined } from '@ant-design/icons'
 import { useAuth } from '../auth/AuthContext'
@@ -48,7 +48,8 @@ export default function LoginPage() {
           </Button>
         </Form>
         <Typography.Paragraph type="secondary" style={{ marginTop: 16, fontSize: 12, textAlign: 'center' }}>
-          Học viên đăng ký khóa mới? <a href="/dang-ky">Đăng ký trực tuyến</a>
+          Chưa có tài khoản? <Link to="/dang-ky">Đăng ký học trực tuyến</Link>
+          {' · '}<Link to="/">Về trang chủ</Link>
         </Typography.Paragraph>
       </Card>
     </div>

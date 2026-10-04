@@ -8,4 +8,8 @@ import java.util.List;
 public interface XeTapLaiRepository extends JpaRepository<XeTapLai, Long> {
     @EntityGraph(attributePaths = "hang")
     List<XeTapLai> findAllByOrderByBienSo();
+
+    boolean existsByBienSo(String bienSo);
+
+    boolean existsByBienSoAndIdNot(String bienSo, Long id);
 }

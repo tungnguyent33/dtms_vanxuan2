@@ -8,6 +8,8 @@ import { useAuth } from './AuthContext'
 export default function RequireRole({ roles, children }: { roles?: VaiTro[]; children: ReactNode }) {
   const { user } = useAuth()
   if (!user) return <Navigate to="/dang-nhap" replace />
+  // FR-01: dang dung mat khau tam thi phai doi truoc (backend cung chan bang ma PHAI_DOI_MAT_KHAU)
+  if (user.phaiDoiMatKhau) return <Navigate to="/doi-mat-khau" replace />
   if (roles && !roles.includes(user.vaiTro)) {
     return <Result status="403" title="Không có quyền" subTitle="Bạn không có quyền truy cập trang này." />
   }

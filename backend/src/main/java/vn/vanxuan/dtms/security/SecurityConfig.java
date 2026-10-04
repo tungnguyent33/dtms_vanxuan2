@@ -1,6 +1,7 @@
 package vn.vanxuan.dtms.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -23,10 +24,13 @@ public class SecurityConfig {
 
     private final JwtService jwtService;
     private final ObjectMapper objectMapper;
+    private final boolean gioiHanTanSuat;
 
-    public SecurityConfig(JwtService jwtService, ObjectMapper objectMapper) {
+    public SecurityConfig(JwtService jwtService, ObjectMapper objectMapper,
+                          @Value("${app.gioi-han-tan-suat:true}") boolean gioiHanTanSuat) {
         this.jwtService = jwtService;
         this.objectMapper = objectMapper;
+        this.gioiHanTanSuat = gioiHanTanSuat;
     }
 
     @Bean
@@ -35,7 +39,7 @@ public class SecurityConfig {
             .csrf(AbstractHttpConfigurer::disable)              // API stateless dung JWT, khong dung cookie phien
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/login", "/api/public/**").permitAll()
+                .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/dang-xuat", "/api/public/**").permitAll()
                 .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/api/**").authenticated()
                 .anyRequest().permitAll())
@@ -54,6 +58,8 @@ public class SecurityConfig {
                     objectMapper.writeValue(res.getOutputStream(),
                             ApiError.of("KHONG_CO_QUYEN", "Bạn không có quyền thực hiện thao tác này"));
                 }))
+            // Thu tu: gioi han tan suat chay truoc, chan som cac request don dap truoc khi doc JWT
+            .addFilterBefore(new GioiHanTanSuatFilter(gioiHanTanSuat), UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(new JwtAuthFilter(jwtService), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }

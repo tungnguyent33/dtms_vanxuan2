@@ -6,9 +6,11 @@ import {
 } from 'antd'
 import { DollarOutlined, FilePdfOutlined, UploadOutlined } from '@ant-design/icons'
 import { api, loiApi, taiTep } from '../../api/client'
-import type { CongNo, DangKy, PhieuThu, TienDo } from '../../api/types'
+import { hienMatKhauTam } from '../../components/MatKhauTam'
+import type { CongNo, DangKy, HoaHong, KetQuaCapMatKhau, Khoa, PhieuThu, TienDo } from '../../api/types'
+import { useCtv } from '../../api/hooks'
 import { useAuth } from '../../auth/AuthContext'
-import { NHAN_HINH_THUC, NHAN_NGUON, NHAN_TRANG_THAI_DK, NHAN_TRANG_THAI_KHOA, ngay, ngayGio, tien } from '../../utils/format'
+import { NHAN_HINH_THUC, NHAN_NGUON, NHAN_TRANG_THAI_DK, NHAN_TRANG_THAI_HOA_HONG, NHAN_TRANG_THAI_KHOA, mucHoaHong, ngay, ngayGio, tien } from '../../utils/format'
 import SoTienInput from '../../components/SoTienInput'
 
 interface Props {
@@ -49,14 +51,54 @@ export default function ChiTietDrawer({ dangKyId, onClose, onChanged }: Props) {
   })
   const dsKhoa = useQuery({
     queryKey: ['khoa'],
-    queryFn: async () => (await api.get<any[]>('/khoa')).data,
+    queryFn: async () => (await api.get<Khoa[]>('/khoa')).data,
   })
 
+
+  const { data: dsCtv } = useCtv()
+  const hoaHong = useQuery({
+    queryKey: ['hoa-hong-dk', dangKyId],
+    enabled: open,
+    retry: false,
+    queryFn: async () => {
+      try {
+        return (await api.get<HoaHong>(`/hoa-hong/dang-ky/${dangKyId}`)).data
+      } catch {
+        return null
+      }
+    },
+  })
+
+  /** Gan CTV (le tan khi chua co CTV; doi CTV da gan chi admin). Chon tu danh sach, khong go tay. */
+  const ganCtv = (d: DangKy) => {
+    let ctvId: number | undefined
+    modal.confirm({
+      title: d.ctvId ? 'Đổi CTV giới thiệu?' : 'Gắn CTV giới thiệu',
+      content: (
+        <Select style={{ width: '100%', marginTop: 8 }} placeholder="Chọn CTV đang hoạt động" showSearch optionFilterProp="label"
+                onChange={(v: number) => (ctvId = v)}
+                options={dsCtv?.filter((c) => c.id !== d.ctvId).map((c) => ({ value: c.id, label: `${c.hoTen} – ${c.soDienThoai}` }))} />
+      ),
+      onOk: async () => {
+        if (!ctvId) { message.warning('Chọn CTV'); throw new Error('chua chon') }
+        try {
+          await api.patch(`/dang-ky/${d.id}/ctv`, { ctvId })
+          message.success('Đã gắn CTV, hoa hồng được tính tự động')
+          lamMoi()
+          qc.invalidateQueries({ queryKey: ['hoa-hong-dk', dangKyId] })
+        } catch (e) {
+          message.error(loiApi(e))
+          throw e
+        }
+      },
+    })
+  }
 
   const lamMoi = () => {
     qc.invalidateQueries({ queryKey: ['dang-ky-ct', dangKyId] })
     qc.invalidateQueries({ queryKey: ['phieu-thu', dangKyId] })
     qc.invalidateQueries({ queryKey: ['cong-no-dk', dangKyId] })
+    qc.invalidateQueries({ queryKey: ['hoa-hong-dk', dangKyId] })
     onChanged()
   }
 
@@ -139,12 +181,41 @@ export default function ChiTietDrawer({ dangKyId, onClose, onChanged }: Props) {
             <Descriptions.Item label="CCCD">{d.hocVien.cccd}</Descriptions.Item>
             <Descriptions.Item label="Điện thoại">{d.hocVien.soDienThoai}</Descriptions.Item>
             <Descriptions.Item label="Tài khoản học viên">
-              Tên đăng nhập: <b>{d.hocVien.cccd}</b><br/>Mật khẩu: <b>123456</b>
+              {d.hocVien.coTaiKhoan ? <>Tên đăng nhập: <b>{d.hocVien.cccd}</b></> : <Typography.Text type="secondary">Chưa cấp</Typography.Text>}
+              {d.trangThai !== 'CHO_DUYET' && d.trangThai !== 'DA_HUY' && (
+                <Button size="small" type="link" onClick={() => modal.confirm({
+                  title: d.hocVien.coTaiKhoan ? 'Đặt lại mật khẩu cổng học viên?' : 'Cấp tài khoản cổng học viên?',
+                  content: 'Hệ thống tạo mật khẩu tạm, chỉ hiện một lần. Học viên phải đổi mật khẩu ở lần đăng nhập đầu.',
+                  onOk: async () => {
+                    try {
+                      const { data: kq } = await api.post<KetQuaCapMatKhau>(`/hoc-vien/${d.hocVien.id}/cap-tai-khoan`)
+                      lamMoi()
+                      hienMatKhauTam(modal, kq)
+                    } catch (e) {
+                      message.error(loiApi(e))
+                    }
+                  },
+                })}>
+                  {d.hocVien.coTaiKhoan ? 'Đặt lại mật khẩu' : 'Cấp tài khoản'}
+                </Button>
+              )}
             </Descriptions.Item>
             <Descriptions.Item label="Địa chỉ">{d.hocVien.diaChi}</Descriptions.Item>
             <Descriptions.Item label="Khóa">{d.maKhoa} (hạng {d.hang})</Descriptions.Item>
             <Descriptions.Item label="Hình thức LT">{NHAN_HINH_THUC[d.hinhThucLyThuyet]}</Descriptions.Item>
-            <Descriptions.Item label="Nguồn">{NHAN_NGUON[d.nguon]}</Descriptions.Item>
+            <Descriptions.Item label="Nguồn">
+              {NHAN_NGUON[d.nguon]}{d.tenCtv ? <> – <b>{d.tenCtv}</b></> : ''}
+              {d.trangThai !== 'DA_HUY' && (!d.ctvId || coQuyen('ADMIN')) && (
+                <Button size="small" type="link" onClick={() => ganCtv(d)}>{d.ctvId ? 'Đổi CTV' : 'Gắn CTV'}</Button>
+              )}
+            </Descriptions.Item>
+            {hoaHong.data && (
+              <Descriptions.Item label="Hoa hồng CTV" span={2}>
+                <b>{tien(hoaHong.data.soTien)}</b> ({mucHoaHong(hoaHong.data.kieu, hoaHong.data.giaTri)}){' '}
+                <Tag color={NHAN_TRANG_THAI_HOA_HONG[hoaHong.data.trangThai].color}>{NHAN_TRANG_THAI_HOA_HONG[hoaHong.data.trangThai].text}</Tag>
+                {hoaHong.data.ghiChu && <Typography.Text type="warning"> {hoaHong.data.ghiChu}</Typography.Text>}
+              </Descriptions.Item>
+            )}
             <Descriptions.Item label="Ngày đăng ký">{ngayGio(d.ngayDangKy)}</Descriptions.Item>
             {d.soGiayXacNhan && (
               <Descriptions.Item label="Giấy xác nhận" span={2}>{d.soGiayXacNhan} – {ngay(d.ngayHoanThanh)}</Descriptions.Item>

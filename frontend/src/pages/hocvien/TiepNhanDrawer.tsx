@@ -1,18 +1,30 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Alert, App, Button, Col, DatePicker, Drawer, Form, Input, Radio, Row, Select, Space } from 'antd'
 import { SearchOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
-import { api, loiApi } from '../../api/client'
+import { api, goiYKhoa, loiApi } from '../../api/client'
 import { useCtv, useKhoa } from '../../api/hooks'
 import type { DangKy, HocVien } from '../../api/types'
 import { ngay, tien } from '../../utils/format'
 import SoTienInput from '../../components/SoTienInput'
 
+/** Tao ho so tu lead: dien san thong tin, nguon / CTV lay theo lead (nguoi gioi thieu dau tien). */
+export interface MacDinhTiepNhan {
+  leadId: number
+  hoTen: string
+  soDienThoai: string
+  diaChi?: string
+  nguon: 'CTV' | 'HOC_VIEN' | 'VAN_PHONG'
+  ctvId?: number
+  tenCtv?: string
+}
+
 interface Props {
   open: boolean
   onClose: () => void
   onDone: (dangKyId: number) => void
+  macDinh?: MacDinhTiepNhan
 }
 
 interface FormValues {
@@ -26,7 +38,7 @@ interface FormValues {
   email?: string
   khoaId: number
   hinhThucLyThuyet: 'TU_HOC' | 'TAP_TRUNG'
-  nguon: 'TRUC_TIEP' | 'CTV'
+  nguon: 'TRUC_TIEP' | 'CTV' | 'HOC_VIEN_GIOI_THIEU'
   ctvId?: number
   giamTru?: number
   lyDoGiamTru?: string
@@ -34,8 +46,8 @@ interface FormValues {
 }
 
 /** UC05 - Tiep nhan ho so hoc vien. Buoc 1: nhap CCCD de dung lai ho so cu. */
-export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
-  const { message } = App.useApp()
+export default function TiepNhanDrawer({ open, onClose, onDone, macDinh }: Props) {
+  const { message, modal } = App.useApp()
   const [form] = Form.useForm<FormValues>()
   const [hvCu, setHvCu] = useState<HocVien | null>(null)
   const [traCuu, setTraCuu] = useState(false)
@@ -46,6 +58,15 @@ export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
   const khoaId = Form.useWatch('khoaId', form)
   const khoaChon = khoa?.find((k) => k.id === khoaId)
   const khoaNhan = khoa?.filter((k) => k.trangThai === 'DANG_TUYEN' || k.trangThai === 'DANG_DAO_TAO')
+
+  useEffect(() => {
+    if (!open || !macDinh) return
+    form.setFieldsValue({
+      hoTen: macDinh.hoTen, soDienThoai: macDinh.soDienThoai, diaChi: macDinh.diaChi,
+      nguon: macDinh.nguon === 'CTV' ? 'CTV' : macDinh.nguon === 'HOC_VIEN' ? 'HOC_VIEN_GIOI_THIEU' : 'TRUC_TIEP',
+      ctvId: macDinh.ctvId,
+    })
+  }, [open, macDinh, form])
 
   const traCccd = async () => {
     const cccd = form.getFieldValue('cccd')
@@ -81,7 +102,7 @@ export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
         },
         khoaId: v.khoaId, hinhThucLyThuyet: v.hinhThucLyThuyet, nguon: v.nguon,
         ctvId: v.nguon === 'CTV' ? v.ctvId : undefined,
-        giamTru: v.giamTru ?? 0, lyDoGiamTru: v.lyDoGiamTru, ghiChu: v.ghiChu,
+        giamTru: v.giamTru ?? 0, lyDoGiamTru: v.lyDoGiamTru, ghiChu: v.ghiChu, leadId: macDinh?.leadId,
       }
       return (await api.post<DangKy>('/dang-ky', body)).data
     },
@@ -91,7 +112,18 @@ export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
       setHvCu(null)
       onDone(dk.id)
     },
-    onError: (e) => message.error(loiApi(e)),
+    onError: (e) => {
+      const g = goiYKhoa(e)
+      if (!g) { message.error(loiApi(e)); return }
+      // UC05 - 5b: khoa da du si so -> de xuat khoa ke tiep cung hang
+      modal.confirm({
+        title: 'Khóa đã đủ sĩ số',
+        content: `Chuyển hồ sơ sang khóa ${g.maKhoa} (khai giảng ${ngay(g.khaiGiang)}, còn ${g.conCho} chỗ)?`,
+        okText: 'Chuyển và lưu',
+        cancelText: 'Chọn khóa khác',
+        onOk: () => { form.setFieldValue('khoaId', g.khoaId); form.submit() },
+      })
+    },
   })
 
   return (
@@ -107,6 +139,11 @@ export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
             <Button icon={<SearchOutlined />} loading={traCuu} onClick={traCccd}>Kiểm tra</Button>
           </Space.Compact>
         </Form.Item>
+        {macDinh && (
+          <Alert type="success" showIcon style={{ marginBottom: 16 }}
+                 message={`Tạo hồ sơ từ lead${macDinh.tenCtv ? ` của CTV ${macDinh.tenCtv}` : ''}`}
+                 description="Nguồn và CTV giới thiệu lấy theo lead (ghi nhận người giới thiệu đầu tiên), không đổi ở đây. Nhập CCCD rồi bấm Kiểm tra." />
+        )}
         {hvCu && (
           <Alert type="info" showIcon style={{ marginBottom: 16 }}
                  message={`Hồ sơ cũ: ${hvCu.maHocVien} – ${hvCu.hoTen}, sinh ${ngay(hvCu.ngaySinh)}`} />
@@ -154,7 +191,10 @@ export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
                    extra={khoaChon && `Hạng ${khoaChon.hangMa} · ${ngay(khoaChon.ngayKhaiGiang)} – ${ngay(khoaChon.ngayBeGiang)} · `
                      + `${khoaChon.soDangKy}/${khoaChon.siSoToiDa} học viên · học phí ${tien(khoaChon.hocPhi)}`}>
           <Select placeholder="Chọn khóa đang tuyển"
-                  options={khoaNhan?.map((k) => ({ value: k.id, label: `${k.maKhoa} – hạng ${k.hangMa}` }))} />
+                  options={khoaNhan?.map((k) => ({
+                    value: k.id,
+                    label: `${k.maKhoa} – hạng ${k.hangMa}${k.soDangKy >= k.siSoToiDa ? ' (đã đủ)' : ` · còn ${k.siSoToiDa - k.soDangKy} chỗ`}`,
+                  }))} />
         </Form.Item>
         <Form.Item name="hinhThucLyThuyet" label="Hình thức học lý thuyết">
           <Radio.Group options={[{ value: 'TU_HOC', label: 'Tự học' }, { value: 'TAP_TRUNG', label: 'Học tập trung tại trung tâm' }]} />
@@ -162,13 +202,16 @@ export default function TiepNhanDrawer({ open, onClose, onDone }: Props) {
         <Row gutter={12}>
           <Col xs={24} md={12}>
             <Form.Item name="nguon" label="Nguồn">
-              <Radio.Group options={[{ value: 'TRUC_TIEP', label: 'Trực tiếp' }, { value: 'CTV', label: 'Cộng tác viên' }]} />
+              <Radio.Group disabled={!!macDinh}
+                           options={[{ value: 'TRUC_TIEP', label: 'Trực tiếp' }, { value: 'CTV', label: 'Cộng tác viên' },
+                             ...(nguon === 'HOC_VIEN_GIOI_THIEU' ? [{ value: 'HOC_VIEN_GIOI_THIEU', label: 'Học viên giới thiệu' }] : [])]} />
             </Form.Item>
           </Col>
           <Col xs={24} md={12}>
             {nguon === 'CTV' && (
-              <Form.Item name="ctvId" label="CTV giới thiệu" rules={[{ required: true, message: 'Chọn CTV' }]}>
-                <Select showSearch optionFilterProp="label"
+              <Form.Item name="ctvId" label="CTV giới thiệu" rules={[{ required: true, message: 'Chọn CTV' }]}
+                         extra={!macDinh && 'Chọn từ danh sách CTV đang hoạt động'}>
+                <Select showSearch optionFilterProp="label" disabled={!!macDinh}
                         options={ctv?.map((c) => ({ value: c.id, label: `${c.hoTen} – ${c.soDienThoai}` }))} />
               </Form.Item>
             )}

@@ -16,6 +16,7 @@ import vn.vanxuan.dtms.module.khoa.KhoaDaoTaoRepository;
 import vn.vanxuan.dtms.module.nguoidung.NguoiDungRepository;
 import vn.vanxuan.dtms.module.nguoidung.VaiTro;
 import vn.vanxuan.dtms.security.AuthUser;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -41,10 +42,11 @@ public class LichHocService {
     private final XeTapLaiRepository xeRepo;
     private final DangKyRepository dangKyRepo;
     private final NguoiDungRepository nguoiDungRepo;
+    private final ThongBaoService thongBao;
 
     public LichHocService(BuoiHocRepository buoiRepo, DiemDanhRepository diemDanhRepo, KhoaDaoTaoRepository khoaRepo,
                           GiaoVienRepository gvRepo, XeTapLaiRepository xeRepo, DangKyRepository dangKyRepo,
-                          NguoiDungRepository nguoiDungRepo) {
+                          NguoiDungRepository nguoiDungRepo, ThongBaoService thongBao) {
         this.buoiRepo = buoiRepo;
         this.diemDanhRepo = diemDanhRepo;
         this.khoaRepo = khoaRepo;
@@ -52,6 +54,7 @@ public class LichHocService {
         this.xeRepo = xeRepo;
         this.dangKyRepo = dangKyRepo;
         this.nguoiDungRepo = nguoiDungRepo;
+        this.thongBao = thongBao;
     }
 
     // ------------------------------------------------------------------ lap lich
@@ -95,7 +98,13 @@ public class LichHocService {
         b.setDiaDiem(req.diaDiem());
         b.setGiaoVien(gv);
         b.setXe(xe);
-        return BuoiHocResponse.of(buoiRepo.save(b));
+        buoiRepo.save(b);
+        if (gv.getNguoiDung() != null) {
+            thongBao.gui(gv.getNguoiDung().getId(), ThongBaoService.LICH_HOC, "Phân công dạy ngày " + b.getNgay(),
+                    (b.getLoai() == BuoiHoc.Loai.LY_THUYET ? "Lý thuyết" : "Thực hành") + " khóa " + khoa.getMaKhoa() + ", "
+                            + b.getGioBatDau() + "–" + b.getGioKetThuc() + " tại " + b.getDiaDiem() + ".", "/diem-danh", null);
+        }
+        return BuoiHocResponse.of(b);
     }
 
     @Transactional(readOnly = true)

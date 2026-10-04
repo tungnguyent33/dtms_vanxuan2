@@ -27,4 +27,16 @@ public interface KhoaDaoTaoRepository extends JpaRepository<KhoaDaoTao, Long> {
     Optional<KhoaDaoTao> khoaDeXepHocVien(@Param("id") Long id);
 
     boolean existsByMaKhoa(String maKhoa);
+
+    /** UC05 - 5b: cac khoa cung hang co the goi y khi khoa da du si so (som nhat truoc). */
+    @EntityGraph(attributePaths = "hang")
+    @Query("""
+            select k from KhoaDaoTao k
+            where k.hang.ma = :hang and k.id <> :boQuaId and k.trangThai in :trangThai
+              and k.ngayKhaiGiang >= :tuNgay
+            order by k.ngayKhaiGiang
+            """)
+    List<KhoaDaoTao> khoaCungHang(@Param("hang") String hang, @Param("boQuaId") Long boQuaId,
+                                  @Param("trangThai") java.util.Collection<KhoaDaoTao.TrangThai> trangThai,
+                                  @Param("tuNgay") java.time.LocalDate tuNgay);
 }

@@ -19,7 +19,7 @@ import java.time.LocalDateTime;
 public class DangKy {
     public enum HinhThucLyThuyet { TU_HOC, TAP_TRUNG }
 
-    public enum Nguon { TRUC_TIEP, TRUC_TUYEN, CTV }
+    public enum Nguon { TRUC_TIEP, TRUC_TUYEN, CTV, HOC_VIEN_GIOI_THIEU }
 
     public enum TrangThai {
         CHO_DUYET, DA_TIEP_NHAN, DANG_HOC, CHUA_DAT, HOAN_THANH, SAT_HACH_TRUOT, DA_SAT_HACH_DAT, DA_HUY
@@ -82,6 +82,10 @@ public class DangKy {
     private String ghiChu;
 
     /** Hoc phi phai dong sau giam tru. */
+    /** Nguon HOC_VIEN_GIOI_THIEU: hoc vien da gioi thieu nguoi nay (thong ke, khong tu sinh hoa hong). */
+    @Column(name = "gioi_thieu_hoc_vien_id")
+    private Long gioiThieuHocVienId;
+
     public BigDecimal phaiDong() {
         return hocPhi.subtract(giamTru);
     }

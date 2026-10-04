@@ -40,3 +40,128 @@ body {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------- Cong khach */
+.pub {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #f5f7fa;
+}
+
+.pub main {
+  flex: 1;
+}
+
+.pub-container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.pub-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.pub-header-inner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 64px;
+}
+
+.pub-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: auto;
+  color: #1f4e79;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.pub-brand small {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: #888;
+}
+
+.pub-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #1f4e79;
+  color: #fff;
+  font-size: 14px;
+}
+
+.pub-hero {
+  padding: 56px 0;
+  background: linear-gradient(135deg, #1f4e79 0%, #2e75b6 100%);
+}
+
+.pub-hero .pub-hero-title {
+  color: #fff;
+  margin-top: 0;
+}
+
+.pub-hero .pub-hero-sub {
+  max-width: 620px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+}
+
+.pub-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.pub-section {
+  padding-top: 32px;
+  padding-bottom: 8px;
+}
+
+.pub-khoa-gia {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1f4e79;
+  margin-bottom: 8px;
+}
+
+.pub-cta {
+  border-left: 4px solid #1f4e79;
+}
+
+.pub-footer {
+  margin-top: 40px;
+  padding: 24px 0;
+  background: #fff;
+  border-top: 1px solid #eee;
+  color: #555;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.pub-footer-note {
+  color: #999;
+}
+
+@media (max-width: 768px) {
+  .pub-hero {
+    padding: 36px 0;
+  }
+
+  .pub-hero .pub-hero-title {
+    font-size: 28px;
+  }
+}

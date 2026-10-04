@@ -30,11 +30,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
         String header = request.getHeader(HttpHeaders.AUTHORIZATION);
         if (header != null && header.startsWith("Bearer ")) {
-            jwtService.docToken(header.substring(7)).ifPresent(user -> {
+            AuthUser user = jwtService.docToken(header.substring(7)).orElse(null);
+            if (user != null) {
+                // FR-01: dang dung mat khau tam thi chi duoc goi /api/auth/** (doi mat khau, dang xuat)
+                if (user.phaiDoiMatKhau() && !request.getRequestURI().startsWith("/api/auth/")) {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.setCharacterEncoding("UTF-8");
+                    response.getWriter().write("{\"code\":\"PHAI_DOI_MAT_KHAU\","
+                            + "\"message\":\"Bạn cần đổi mật khẩu trước khi sử dụng hệ thống\"}");
+                    return;
+                }
                 var auth = new UsernamePasswordAuthenticationToken(
                         user, null, List.of(new SimpleGrantedAuthority("ROLE_" + user.vaiTro())));
                 SecurityContextHolder.getContext().setAuthentication(auth);
-            });
+            }
         }
         chain.doFilter(request, response);
     }

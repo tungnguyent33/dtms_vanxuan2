@@ -20,6 +20,9 @@ public interface PhieuThuRepository extends JpaRepository<PhieuThu, Long> {
         return tong == null ? BigDecimal.ZERO : tong;   // chua co phieu nao -> SUM tra ve null
     }
 
+    @Query("select p.dangKy.id from PhieuThu p where p.id = :id")
+    Optional<Long> dangKyIdCuaPhieu(@Param("id") Long phieuId);
+
     @EntityGraph(attributePaths = {"nguoiThu"})
     List<PhieuThu> findByDangKyIdOrderByNgayThuDesc(Long dangKyId);
 

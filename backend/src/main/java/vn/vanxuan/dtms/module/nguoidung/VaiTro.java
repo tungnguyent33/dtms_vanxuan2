@@ -15,6 +15,7 @@ public class VaiTro {
     public static final String LE_TAN = "LE_TAN";
     public static final String GIAO_VIEN = "GIAO_VIEN";
     public static final String HOC_VIEN = "HOC_VIEN";
+    public static final String CTV = "CTV";
 
     @Id
     private Integer id;

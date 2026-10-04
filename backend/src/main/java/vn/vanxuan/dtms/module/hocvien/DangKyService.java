@@ -1,5 +1,6 @@
 package vn.vanxuan.dtms.module.hocvien;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -15,7 +16,13 @@ import vn.vanxuan.dtms.module.hocphi.PhieuThuRepository;
 import vn.vanxuan.dtms.module.khoa.KhoaDaoTao;
 import vn.vanxuan.dtms.module.khoa.KhoaDaoTaoRepository;
 import vn.vanxuan.dtms.module.nguoidung.NguoiDungRepository;
+import vn.vanxuan.dtms.module.nguoidung.VaiTro;
 import vn.vanxuan.dtms.security.AuthUser;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
+import vn.vanxuan.dtms.module.ctv.HoaHongService;
+import vn.vanxuan.dtms.module.ctv.LeadKhach;
+import vn.vanxuan.dtms.module.ctv.LeadService;
+import vn.vanxuan.dtms.module.danhmuc.CongTacVien;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -45,10 +52,14 @@ public class DangKyService {
     private final PhieuThuRepository phieuThuRepo;
     private final SoThuTuService soThuTu;
     private final NhatKyService nhatKy;
+    private final ThongBaoService thongBao;
+    private final LeadService leadService;
+    private final HoaHongService hoaHong;
 
     public DangKyService(DangKyRepository dangKyRepo, HocVienRepository hocVienRepo, KhoaDaoTaoRepository khoaRepo,
                          CongTacVienRepository ctvRepo, NguoiDungRepository nguoiDungRepo,
-                         PhieuThuRepository phieuThuRepo, SoThuTuService soThuTu, NhatKyService nhatKy) {
+                         PhieuThuRepository phieuThuRepo, SoThuTuService soThuTu, NhatKyService nhatKy,
+                         ThongBaoService thongBao, LeadService leadService, HoaHongService hoaHong) {
         this.dangKyRepo = dangKyRepo;
         this.hocVienRepo = hocVienRepo;
         this.khoaRepo = khoaRepo;
@@ -57,6 +68,9 @@ public class DangKyService {
         this.phieuThuRepo = phieuThuRepo;
         this.soThuTu = soThuTu;
         this.nhatKy = nhatKy;
+        this.thongBao = thongBao;
+        this.leadService = leadService;
+        this.hoaHong = hoaHong;
     }
 
     // ------------------------------------------------------------------ tiep nhan
@@ -88,10 +102,7 @@ public class DangKyService {
         dk.setHocVien(hv);
         dk.setKhoa(khoa);
         dk.setHinhThucLyThuyet(req.hinhThucLyThuyet());
-        dk.setNguon(req.nguon());
-        if (req.ctvId() != null) {
-            dk.setCtv(ctvRepo.findById(req.ctvId()).orElseThrow(() -> new NotFoundException("cộng tác viên", req.ctvId())));
-        }
+        LeadKhach lead = xacDinhNguon(dk, req, hv);
         dk.setHocPhi(khoa.getHocPhi());
         dk.setGiamTru(giamTru);
         dk.setLyDoGiamTru(req.lyDoGiamTru());
@@ -100,7 +111,80 @@ public class DangKyService {
                 ? DangKy.TrangThai.DANG_HOC : DangKy.TrangThai.DA_TIEP_NHAN);
         dk.setNguoiTiepNhan(nguoiDungRepo.getReferenceById(leTan.id()));
         dk.setMaHoSo(capMaHoSo(khoa.getHang()));
-        return DangKyResponse.of(dangKyRepo.save(dk));
+        dangKyRepo.save(dk);
+        if (lead != null) leadService.danhDauDaChot(lead, dk.getId());
+        hoaHong.tinhChoDangKy(dk);
+        return DangKyResponse.of(dk);
+    }
+
+    /**
+     * Nguon / CTV cua ho so. Neu SDT da co lead chua chot thi lead thang (ghi nhan nguoi gioi thieu dau tien):
+     * le tan chon CTV khac ma khong tao tu lead -> bao loi de tranh "cuop" hoa hong; admin giao lai lead neu can.
+     */
+    private LeadKhach xacDinhNguon(DangKy dk, TaoDangKyRequest req, HocVien hv) {
+        LeadKhach lead;
+        if (req.leadId() != null) {
+            lead = leadService.lay(req.leadId());
+            if (lead.getTrangThai() == LeadKhach.TrangThai.DA_CHOT) {
+                throw new BusinessException("LEAD_DA_CHOT", "Lead này đã được chốt thành hồ sơ khác");
+            }
+        } else {
+            lead = leadService.leadChuaChot(hv.getSoDienThoai()).orElse(null);
+            if (lead != null && lead.getNguon() == LeadKhach.Nguon.CTV
+                    && (req.nguon() != DangKy.Nguon.CTV || !lead.getCtvId().equals(req.ctvId()))) {
+                CongTacVien ctvLead = ctvRepo.findById(lead.getCtvId()).orElseThrow();
+                throw new BusinessException("LEAD_CUA_CTV_KHAC", "SĐT " + hv.getSoDienThoai() + " đã được CTV "
+                        + ctvLead.getHoTen() + " giới thiệu trước. Tạo hồ sơ từ lead đó, hoặc nhờ quản trị viên giao lại lead");
+            }
+        }
+        if (lead != null && lead.getNguon() == LeadKhach.Nguon.CTV) {
+            dk.setNguon(DangKy.Nguon.CTV);
+            dk.setCtv(ctvHoatDong(lead.getCtvId()));
+        } else if (lead != null && lead.getNguon() == LeadKhach.Nguon.HOC_VIEN) {
+            dk.setNguon(DangKy.Nguon.HOC_VIEN_GIOI_THIEU);
+            dk.setGioiThieuHocVienId(lead.getHocVienGioiThieuId());
+        } else {
+            if (req.nguon() == DangKy.Nguon.HOC_VIEN_GIOI_THIEU) {
+                throw new BusinessException("NGUON_KHONG_HOP_LE", "Nguồn \"học viên giới thiệu\" chỉ tạo từ lead do học viên gửi");
+            }
+            dk.setNguon(req.nguon());
+            if (req.nguon() == DangKy.Nguon.CTV) dk.setCtv(ctvHoatDong(req.ctvId()));
+        }
+        return lead;
+    }
+
+    private CongTacVien ctvHoatDong(Long ctvId) {
+        CongTacVien c = ctvRepo.findById(ctvId).orElseThrow(() -> new NotFoundException("cộng tác viên", ctvId));
+        if (!c.dangHoatDong()) {
+            throw new BusinessException("CTV_KHONG_HOAT_DONG", "CTV " + c.getHoTen() + " chưa được duyệt hoặc đang bị khóa");
+        }
+        return c;
+    }
+
+    /** Gan CTV cho ho so da co. Le tan gan khi ho so chua co CTV; doi CTV da gan chi quan tri vien. */
+    @Transactional
+    public DangKyResponse ganCtv(Long id, Long ctvId, AuthUser user) {
+        DangKy dk = layChiTiet(id);
+        if (dk.getTrangThai() == DangKy.TrangThai.DA_HUY) {
+            throw new BusinessException("HO_SO_DA_HUY", "Hồ sơ đã hủy");
+        }
+        boolean laAdmin = user.la(VaiTro.ADMIN);
+        if (dk.getCtv() != null && !laAdmin) {
+            throw new BusinessException("CHI_ADMIN_DOI_CTV", "Hồ sơ đã gắn CTV " + dk.getCtv().getHoTen()
+                    + ". Chỉ quản trị viên được đổi CTV", org.springframework.http.HttpStatus.FORBIDDEN);
+        }
+        CongTacVien moi = ctvHoatDong(ctvId);
+        var lead = leadService.leadChuaChot(dk.getHocVien().getSoDienThoai()).orElse(null);
+        if (lead != null && lead.getNguon() == LeadKhach.Nguon.CTV && !lead.getCtvId().equals(ctvId) && !laAdmin) {
+            throw new BusinessException("LEAD_CUA_CTV_KHAC", "SĐT học viên đã là lead của một CTV khác. Nhờ quản trị viên quyết định");
+        }
+        Long cu = dk.getCtv() == null ? null : dk.getCtv().getId();
+        dk.setCtv(moi);
+        dk.setNguon(DangKy.Nguon.CTV);
+        hoaHong.tinhChoDangKy(dk);
+        if (lead != null) leadService.danhDauDaChot(lead, dk.getId());
+        nhatKy.ghi(user.id(), "GAN_CTV", "dang_ky", id, Map.of("tuCtv", String.valueOf(cu), "sangCtv", ctvId));
+        return DangKyResponse.of(dk);
     }
 
     /** Khach tu dang ky tren website: tao ho so CHO_DUYET, le tan duyet sau (UC13, UC15). */
@@ -111,7 +195,7 @@ public class DangKyService {
         if (khoa.getTrangThai() != KhoaDaoTao.TrangThai.DANG_TUYEN) {
             throw new BusinessException("KHOA_KHONG_TUYEN", "Khóa này hiện không nhận đăng ký");
         }
-        kiemTraSiSo(khoa);
+        kiemTraSiSo(khoa, NHAN_TRUC_TUYEN);
         // Khong ghi de thong tin hoc vien da co (tranh nguoi la sua ho so bang CCCD cua nguoi khac)
         HocVien hv = timHoacTaoHocVien(req.hocVien(), false);
         kiemTraTuoi(hv, khoa);
@@ -123,10 +207,26 @@ public class DangKyService {
         dk.setKhoa(khoa);
         dk.setHinhThucLyThuyet(req.hinhThucLyThuyet());
         dk.setNguon(DangKy.Nguon.TRUC_TUYEN);
+        LeadKhach lead = leadService.leadChuaChot(hv.getSoDienThoai()).orElse(null);
+        if (lead != null && lead.getNguon() == LeadKhach.Nguon.CTV) {
+            ctvRepo.findById(lead.getCtvId()).filter(CongTacVien::dangHoatDong).ifPresent(c -> {
+                dk.setNguon(DangKy.Nguon.CTV);
+                dk.setCtv(c);
+            });
+        } else if (lead != null && lead.getNguon() == LeadKhach.Nguon.HOC_VIEN) {
+            dk.setNguon(DangKy.Nguon.HOC_VIEN_GIOI_THIEU);
+            dk.setGioiThieuHocVienId(lead.getHocVienGioiThieuId());
+        }
         dk.setHocPhi(khoa.getHocPhi());
         dk.setTrangThai(DangKy.TrangThai.CHO_DUYET);
         dk.setMaHoSo(capMaHoSo(khoa.getHang()));
         dangKyRepo.save(dk);
+        if (lead != null) leadService.danhDauDaChot(lead, dk.getId());
+        hoaHong.tinhChoDangKy(dk);
+        thongBao.guiTheoVaiTro(List.of(VaiTro.ADMIN, VaiTro.LE_TAN), ThongBaoService.HO_SO,
+                "Đăng ký trực tuyến mới " + dk.getMaHoSo(),
+                hv.getHoTen() + " (" + hv.getSoDienThoai() + ") đăng ký khóa " + khoa.getMaKhoa()
+                        + ". Gọi điện xác nhận và duyệt hồ sơ.", "/hoc-vien", null);
         return dk.getMaHoSo();
     }
 
@@ -139,6 +239,11 @@ public class DangKyService {
         dk.setNguoiTiepNhan(nguoiDungRepo.getReferenceById(leTan.id()));
         dk.setTrangThai(dk.getKhoa().getTrangThai() == KhoaDaoTao.TrangThai.DANG_DAO_TAO
                 ? DangKy.TrangThai.DANG_HOC : DangKy.TrangThai.DA_TIEP_NHAN);
+        nhatKy.ghi(leTan.id(), "DUYET_DANG_KY", "dang_ky", dk.getId(), null);
+        hoaHong.capNhatTrangThai(dk);
+        thongBao.gui(dk.getHocVien().nguoiDungId(), ThongBaoService.HO_SO, "Hồ sơ " + dk.getMaHoSo() + " đã được duyệt",
+                "Khóa " + dk.getKhoa().getMaKhoa() + " khai giảng ngày " + dk.getKhoa().getNgayKhaiGiang() + ".",
+                "/hoc-tap", null);
         return DangKyResponse.of(dk);
     }
 
@@ -155,6 +260,7 @@ public class DangKyService {
         dk.setTrangThai(DangKy.TrangThai.DA_HUY);
         dk.setGhiChu(lyDo);
         nhatKy.ghi(user.id(), "HUY_DANG_KY", "dang_ky", dk.getId(), Map.of("lyDo", lyDo));
+        hoaHong.capNhatTrangThai(dk);
         return DangKyResponse.of(dk);
     }
 
@@ -217,14 +323,30 @@ public class DangKyService {
             throw new BusinessException("KHOA_KHONG_TUYEN",
                     "Khóa " + khoa.getMaKhoa() + " không nhận học viên (trạng thái " + khoa.getTrangThai() + ")");
         }
-        kiemTraSiSo(khoa);
+        kiemTraSiSo(khoa, NHAN_TAI_QUAY);
     }
 
-    private void kiemTraSiSo(KhoaDaoTao khoa) {
+    /** Trang thai khoa duoc goi y: le tan xep duoc ca khoa dang dao tao, khach chi dang ky khoa dang tuyen. */
+    private static final Set<KhoaDaoTao.TrangThai> NHAN_TAI_QUAY =
+            EnumSet.of(KhoaDaoTao.TrangThai.DANG_TUYEN, KhoaDaoTao.TrangThai.DANG_DAO_TAO);
+    private static final Set<KhoaDaoTao.TrangThai> NHAN_TRUC_TUYEN = EnumSet.of(KhoaDaoTao.TrangThai.DANG_TUYEN);
+
+    /** BR-04; UC05 - 5b: khoa du si so thi goi y khoa som nhat cung hang con cho (details.goiYKhoaId...). */
+    private void kiemTraSiSo(KhoaDaoTao khoa, Set<KhoaDaoTao.TrangThai> trangThaiGoiY) {
         long daCo = dangKyRepo.countByKhoaIdAndTrangThaiNot(khoa.getId(), DangKy.TrangThai.DA_HUY);
-        if (daCo >= khoa.getSiSoToiDa()) {
-            throw new BusinessException("KHOA_DU_SI_SO", "Khóa " + khoa.getMaKhoa() + " đã đủ " + khoa.getSiSoToiDa() + " học viên");
+        if (daCo < khoa.getSiSoToiDa()) return;
+        String thongBao = "Khóa " + khoa.getMaKhoa() + " đã đủ " + khoa.getSiSoToiDa() + " học viên";
+        for (KhoaDaoTao k : khoaRepo.khoaCungHang(khoa.getHang().getMa(), khoa.getId(), trangThaiGoiY, LocalDate.now())) {
+            long conCho = k.getSiSoToiDa() - dangKyRepo.countByKhoaIdAndTrangThaiNot(k.getId(), DangKy.TrangThai.DA_HUY);
+            if (conCho > 0) {
+                throw new BusinessException("KHOA_DU_SI_SO", thongBao + ". Gợi ý: khóa " + k.getMaKhoa()
+                        + " (khai giảng " + k.getNgayKhaiGiang() + ", còn " + conCho + " chỗ)",
+                        HttpStatus.UNPROCESSABLE_ENTITY, Map.of(
+                        "goiYKhoaId", k.getId().toString(), "goiYMaKhoa", k.getMaKhoa(),
+                        "goiYKhaiGiang", k.getNgayKhaiGiang().toString(), "goiYConCho", Long.toString(conCho)));
+            }
         }
+        throw new BusinessException("KHOA_DU_SI_SO", thongBao + ". Hiện chưa có khóa cùng hạng còn chỗ");
     }
 
     /**
@@ -247,19 +369,8 @@ public class DangKyService {
             hv.setCccd(in.cccd());
             hv.setMaHocVien(soThuTu.capMa("HV" + LocalDate.now().getYear(), "HV" + LocalDate.now().getYear(), 6));
             ganThongTin(hv, in);
-            
-            vn.vanxuan.dtms.module.nguoidung.NguoiDung nd = new vn.vanxuan.dtms.module.nguoidung.NguoiDung();
-            nd.setTenDangNhap(in.cccd());
-            nd.setMatKhauHash("$2a$10$BT8/E6B2jJgsawzdvcvuzuc0FJ/vr5Qx4pr.RjBpzJo69mUvEJrP2"); // 123456
-            nd.setHoTen(in.hoTen().trim());
-            nd.setSoDienThoai(in.soDienThoai());
-            vn.vanxuan.dtms.module.nguoidung.VaiTro vt = new vn.vanxuan.dtms.module.nguoidung.VaiTro();
-            vt.setId(4); // HOC_VIEN
-            nd.setVaiTro(vt);
-            nd.setTrangThai(true);
-            nd = nguoiDungRepo.save(nd);
-            hv.setNguoiDung(nd);
-
+            // Tai khoan cong hoc vien KHONG tao o day: le tan cap mat khau tam sau khi doi chieu giay to
+            // (HocVienController#capTaiKhoan) - tranh khach la tao tai khoan qua form dang ky cong khai.
             return hocVienRepo.save(hv);
         }
         if (capNhatNeuDaCo) {

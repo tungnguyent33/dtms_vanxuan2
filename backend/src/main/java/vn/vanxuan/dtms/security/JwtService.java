@@ -35,6 +35,7 @@ public class JwtService {
                 .subject(user.username())
                 .claim("uid", user.id())
                 .claim("role", user.vaiTro())
+                .claim("pdm", user.phaiDoiMatKhau())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
                 .signWith(key)
@@ -50,7 +51,8 @@ public class JwtService {
         try {
             Claims c = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
             Long uid = c.get("uid", Number.class).longValue();
-            return Optional.of(new AuthUser(uid, c.getSubject(), c.get("role", String.class)));
+            boolean pdm = Boolean.TRUE.equals(c.get("pdm", Boolean.class));
+            return Optional.of(new AuthUser(uid, c.getSubject(), c.get("role", String.class), pdm));
         } catch (JwtException | IllegalArgumentException | NullPointerException e) {
             return Optional.empty();
         }

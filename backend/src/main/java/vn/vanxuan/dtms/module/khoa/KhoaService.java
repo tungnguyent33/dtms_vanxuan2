@@ -9,7 +9,9 @@ import vn.vanxuan.dtms.module.danhmuc.HangGplx;
 import vn.vanxuan.dtms.module.danhmuc.HangGplxRepository;
 import vn.vanxuan.dtms.module.hocvien.DangKy;
 import vn.vanxuan.dtms.module.hocvien.DangKyRepository;
+import vn.vanxuan.dtms.module.nguoidung.VaiTro;
 import vn.vanxuan.dtms.security.AuthUser;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
 
 import java.time.LocalDate;
 import java.util.EnumSet;
@@ -35,13 +37,15 @@ public class KhoaService {
     private final HangGplxRepository hangRepo;
     private final DangKyRepository dangKyRepo;
     private final NhatKyService nhatKy;
+    private final ThongBaoService thongBao;
 
     public KhoaService(KhoaDaoTaoRepository khoaRepo, HangGplxRepository hangRepo, DangKyRepository dangKyRepo,
-                       NhatKyService nhatKy) {
+                       NhatKyService nhatKy, ThongBaoService thongBao) {
         this.khoaRepo = khoaRepo;
         this.hangRepo = hangRepo;
         this.dangKyRepo = dangKyRepo;
         this.nhatKy = nhatKy;
+        this.thongBao = thongBao;
     }
 
     @Transactional
@@ -120,6 +124,12 @@ public class KhoaService {
             // Khai giang: hoc vien da tiep nhan chuyen sang dang hoc; ghi nhan ngay bao cao So (BR-12)
             dangKyRepo.doiTrangThaiTheoKhoa(id, DangKy.TrangThai.DA_TIEP_NHAN, DangKy.TrangThai.DANG_HOC);
             if (k.getNgayBaoCaoSo() == null) k.setNgayBaoCaoSo(LocalDate.now());
+            thongBao.guiTheoVaiTro(List.of(VaiTro.ADMIN), ThongBaoService.BAO_CAO_SO, "Lập báo cáo đăng ký khóa " + k.getMaKhoa(),
+                    "Khóa đã khai giảng. Lập báo cáo đăng ký khóa đào tạo gửi Sở Xây dựng (BR-12).", "/khoa", "BC-DK-" + id);
+            for (DangKy dk : dangKyRepo.findByKhoaIdAndTrangThaiInOrderByHocVienHoTen(id, Set.of(DangKy.TrangThai.DANG_HOC))) {
+                thongBao.gui(dk.getHocVien().nguoiDungId(), ThongBaoService.LICH_HOC, "Khóa " + k.getMaKhoa() + " đã khai giảng",
+                        "Xem lịch học và theo dõi tiến độ trong mục Tiến độ học tập.", "/hoc-tap", "KHAI-GIANG-" + id);
+            }
         }
         nhatKy.ghi(admin.id(), "DOI_TRANG_THAI_KHOA", "khoa_dao_tao", id, Map.of("tu", cu.name(), "sang", moi.name()));
         return KhoaResponse.of(k, dangKyRepo.countByKhoaIdAndTrangThaiNot(id, DangKy.TrangThai.DA_HUY));

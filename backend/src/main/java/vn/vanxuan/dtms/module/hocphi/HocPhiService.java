@@ -10,6 +10,8 @@ import vn.vanxuan.dtms.module.hocvien.DangKy;
 import vn.vanxuan.dtms.module.hocvien.DangKyRepository;
 import vn.vanxuan.dtms.module.nguoidung.NguoiDungRepository;
 import vn.vanxuan.dtms.security.AuthUser;
+import vn.vanxuan.dtms.module.thongbao.ThongBaoService;
+import vn.vanxuan.dtms.module.ctv.HoaHongService;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -29,14 +31,19 @@ public class HocPhiService {
     private final NguoiDungRepository nguoiDungRepo;
     private final SoThuTuService soThuTu;
     private final NhatKyService nhatKy;
+    private final ThongBaoService thongBao;
+    private final HoaHongService hoaHong;
 
     public HocPhiService(PhieuThuRepository phieuRepo, DangKyRepository dangKyRepo, NguoiDungRepository nguoiDungRepo,
-                         SoThuTuService soThuTu, NhatKyService nhatKy) {
+                         SoThuTuService soThuTu, NhatKyService nhatKy, ThongBaoService thongBao,
+                         HoaHongService hoaHong) {
         this.phieuRepo = phieuRepo;
         this.dangKyRepo = dangKyRepo;
         this.nguoiDungRepo = nguoiDungRepo;
         this.soThuTu = soThuTu;
         this.nhatKy = nhatKy;
+        this.thongBao = thongBao;
+        this.hoaHong = hoaHong;
     }
 
     @Transactional
@@ -62,7 +69,14 @@ public class HocPhiService {
                 ? "Học phí khóa " + dk.getKhoa().getMaKhoa() : req.noiDung());
         p.setNguoiThu(nguoiDungRepo.getReferenceById(leTan.id()));
         phieuRepo.saveAndFlush(p);
-        return new LapPhieuResponse(PhieuThuResponse.of(p), tinhCongNo(dk));
+        CongNo sau = tinhCongNo(dk);
+        hoaHong.capNhatTrangThai(dk);   // hoc vien dong du % hoc phi -> hoa hong CTV du dieu kien
+        nhatKy.ghi(leTan.id(), "LAP_PHIEU_THU", "phieu_thu", p.getId(),
+                Map.of("soPhieu", p.getSoPhieu(), "soTien", p.getSoTien(), "dangKyId", dk.getId()));
+        thongBao.gui(dk.getHocVien().nguoiDungId(), ThongBaoService.HOC_PHI, "Đã nhận học phí " + vnd(p.getSoTien()),
+                "Phiếu thu " + p.getSoPhieu() + ", khóa " + dk.getKhoa().getMaKhoa() + ". Còn nợ: " + vnd(sau.conNo()) + ".",
+                "/hoc-tap", null);
+        return new LapPhieuResponse(PhieuThuResponse.of(p), sau);
     }
 
     /** BR-11: khong xoa phieu, chi huy mem va bat buoc ly do; chi ADMIN (kiem tra o controller). */
@@ -77,6 +91,11 @@ public class HocPhiService {
         p.setNguoiHuy(nguoiDungRepo.getReferenceById(admin.id()));
         nhatKy.ghi(admin.id(), "HUY_PHIEU_THU", "phieu_thu", p.getId(),
                 Map.of("soPhieu", p.getSoPhieu(), "soTien", p.getSoTien(), "lyDo", lyDo));
+        thongBao.gui(p.getDangKy().getHocVien().nguoiDungId(), ThongBaoService.HOC_PHI,
+                "Phiếu thu " + p.getSoPhieu() + " đã bị hủy",
+                "Lý do: " + lyDo + ". Công nợ học phí đã được cập nhật lại.", "/hoc-tap", null);
+        phieuRepo.flush();
+        hoaHong.capNhatTrangThai(p.getDangKy());
         return PhieuThuResponse.of(p);
     }
 
@@ -90,6 +109,10 @@ public class HocPhiService {
     public CongNo congNo(Long dangKyId) {
         DangKy dk = dangKyRepo.findById(dangKyId).orElseThrow(() -> new NotFoundException("hồ sơ đăng ký", dangKyId));
         return tinhCongNo(dk);
+    }
+
+    private static String vnd(BigDecimal v) {
+        return java.text.NumberFormat.getInstance(java.util.Locale.of("vi", "VN")).format(v) + " đ";
     }
 
     public CongNo tinhCongNo(DangKy dk) {

@@ -8,4 +8,6 @@ public interface HocVienRepository extends JpaRepository<HocVien, Long> {
     Optional<HocVien> findByCccd(String cccd);
 
     Optional<HocVien> findByNguoiDungId(Long nguoiDungId);
+
+    Optional<HocVien> findFirstBySoDienThoai(String soDienThoai);
 }
