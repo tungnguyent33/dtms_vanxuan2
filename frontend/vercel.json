@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://dtmsvanxuan-cadxsar5.b4a.run/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
